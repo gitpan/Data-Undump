@@ -1,9 +1,9 @@
 --- #YAML:1.0
 name:               Data-Undump
-version:            0.02
+version:            0.03
 abstract:           Perl extension for securely and quickly deserializing simple Data::Dumper dumps
 author:
-    - Yves Orton <yorton@localdomain>
+    - Yves Orton <demerphq@gmail.com>
 license:            unknown
 distribution_type:  module
 configure_requires:
