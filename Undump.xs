@@ -891,57 +891,57 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                 fs_got= newSVpvn(fs_token_start, ps_parse_ptr - fs_token_start);
                 goto GOT_SV;
             case TOKEN_IV:{
-                IV iv;
-                
                 /* fallthrough */
                 if (WANT_KEY(fs)) {
                     DONE_KEY_SIMPLE_break;
                 } 
-                iv= 0;
                 ch= ps_parse_ptr - fs_token_start;
                 if (fs_token_start[0] == '-') {
+                    IV iv= 0;
                     if ( ch < 12) {
                         fs_token_start++;
                         switch (ch) {
-                            case 11: iv -= (*fs_token_start++ - '0') * 1000000000;
-                            case 10: iv -= (*fs_token_start++ - '0') * 100000000;
-                            case  9: iv -= (*fs_token_start++ - '0') * 10000000;
-                            case  8: iv -= (*fs_token_start++ - '0') * 1000000;
-                            case  7: iv -= (*fs_token_start++ - '0') * 100000;
-                            case  6: iv -= (*fs_token_start++ - '0') * 10000;
-                            case  5: iv -= (*fs_token_start++ - '0') * 1000;
-                            case  4: iv -= (*fs_token_start++ - '0') * 100;
-                            case  3: iv -= (*fs_token_start++ - '0') * 10;
-                            case  2: iv -= (*fs_token_start++ - '0') * 1;
+                            case 11: iv -= (*fs_token_start++ - '0') * 1000000000L;
+                            case 10: iv -= (*fs_token_start++ - '0') * 100000000L;
+                            case  9: iv -= (*fs_token_start++ - '0') * 10000000L;
+                            case  8: iv -= (*fs_token_start++ - '0') * 1000000L;
+                            case  7: iv -= (*fs_token_start++ - '0') * 100000L;
+                            case  6: iv -= (*fs_token_start++ - '0') * 10000L;
+                            case  5: iv -= (*fs_token_start++ - '0') * 1000L;
+                            case  4: iv -= (*fs_token_start++ - '0') * 100L;
+                            case  3: iv -= (*fs_token_start++ - '0') * 10L;
+                            case  2: iv -= (*fs_token_start++ - '0') * 1L;
                                 break;
                             default: 
                                 PANICf1(ps,fs,"Strange length for negative integer in switch: %d", ch);
                         }
+                        fs_got= newSViv(iv);
                     } else {
                         goto MAKE_SV;
                     }
                 } else {
                     if (ch < 11 ) {
+                        UV uv= 0;
                         switch (ch) {
-                            case 10: iv += (*fs_token_start++ - '0') * 1000000000;
-                            case  9: iv += (*fs_token_start++ - '0') * 100000000;
-                            case  8: iv += (*fs_token_start++ - '0') * 10000000;
-                            case  7: iv += (*fs_token_start++ - '0') * 1000000;
-                            case  6: iv += (*fs_token_start++ - '0') * 100000;
-                            case  5: iv += (*fs_token_start++ - '0') * 10000;
-                            case  4: iv += (*fs_token_start++ - '0') * 1000;
-                            case  3: iv += (*fs_token_start++ - '0') * 100;
-                            case  2: iv += (*fs_token_start++ - '0') * 10;
-                            case  1: iv += (*fs_token_start++ - '0') * 1;
+                            case 10: uv += (*fs_token_start++ - '0') * 1000000000L;
+                            case  9: uv += (*fs_token_start++ - '0') * 100000000L;
+                            case  8: uv += (*fs_token_start++ - '0') * 10000000L;
+                            case  7: uv += (*fs_token_start++ - '0') * 1000000L;
+                            case  6: uv += (*fs_token_start++ - '0') * 100000L;
+                            case  5: uv += (*fs_token_start++ - '0') * 10000L;
+                            case  4: uv += (*fs_token_start++ - '0') * 1000L;
+                            case  3: uv += (*fs_token_start++ - '0') * 100L;
+                            case  2: uv += (*fs_token_start++ - '0') * 10L;
+                            case  1: uv += (*fs_token_start++ - '0') * 1L;
                                 break;
                             default: 
                                 PANICf1(ps,fs,"Strange length for integer in switch: %d", ch);
                         }
+                        fs_got= newSVuv(uv);
                     } else {
                         goto MAKE_SV;
                     }
                 }
-                fs_got= newSViv(iv);
                 goto GOT_SV;
             }
             case TOKEN_NV:
@@ -954,28 +954,33 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                     ERROR(ps,fs,"Multiple objects in stream?");
                 }
                 fs_got= newSVpvn(fs_token_start, ps_parse_ptr - fs_token_start);
-                GOT_SV:
+            GOT_SV:
                 while ( fs_refs > 0 ) {
                     fs_got= newRV_noinc((SV*)fs_got);
                     fs_refs--;
                 }
                 if (obj_char == '{') {
+                    HE *ent;
                     if (fs_key) {
-                        if (!hv_store((HV*)fs_thing, fs_key, fs_key_len, fs_got, 0)) {
-                            PANIC(ps,fs,"failed to store in hash using key/key_len");
-                        }
-                        fs_got= 0;
-                        fs_key= 0;
+                        ent= hv_common((HV *)fs_thing, NULL, fs_key, fs_key_len, 0, HV_FETCH_LVALUE, NULL, 0);
                     } else if (fs_got_key) {
-                        if (!hv_store_ent((HV*)fs_thing, fs_got_key, fs_got, 0)) {
-                            PANIC(ps,fs,"failed to store using sv key");
-                        }
+                        ent= hv_common((HV *)fs_thing, fs_got_key, NULL, 0, 0, HV_FETCH_LVALUE, NULL, 0);
                         SvREFCNT_dec(fs_got_key);
-                        fs_got= 0;
                         fs_got_key= 0;
                     } else {
                         PANIC(ps,fs,"got something to store, but no key?");
                     }
+                    if (!ent) {
+                        PANIC(ps,fs,"failed to store in hash");
+                    }
+                    if (SvOK(HeVAL(ent))) {
+                        ERRORf2(ps,fs,"duplicate key '%.*s' is illegal", (int)fs_key_len, fs_key);
+                    } else {
+                        SvREFCNT_dec(HeVAL(ent));
+                        HeVAL(ent)= fs_got;
+                    }
+                    fs_key= 0;
+                    fs_got= 0;
                     WANT_KEY_on(fs);
                     ALLOW_COMMA_on(fs);
                 } else if (obj_char == '[') {
